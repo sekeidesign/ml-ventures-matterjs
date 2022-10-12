@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MetaLab Ventures | Matter.js</title>
+    <style>
+      .grid-square {
+        background-color: antiquewhite;
+        aspect-ratio: 1/1;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+      "
+    >
+      <div
+        style="
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 16px;
+          width: 100%;
+          max-width: 900px;
+        "
+      >
+        <div class="grid-square"></div>
+        <div class="grid-square" id="hover-square"></div>
+        <div class="grid-square"></div>
+      </div>
+    </div>
+  </body>
+
+  <script src="https://cdn.jsdelivr.net/npm/pathseg@1.2.1/pathseg.js"></script>
+  <script
+    type="module"
+    src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"
+  ></script>
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"
+    integrity="sha512-5T245ZTH0m0RfONiFm2NF0zcYcmAuNzcGyPSQ18j8Bs5Pbfhp5HP1hosrR8XRt5M3kSRqzjNMYpm2+it/AUX/g=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+  <script
+    src="https://code.jquery.com/jquery-3.6.1.js"
+    integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI="
+    crossorigin="anonymous"
+  ></script>
+  <script>
+    const square = document.getElementById('hover-square');
+    const height = square.offsetHeight;
+    const width = square.offsetWidth;
+    console.log(height, width);
+
+    // module aliases
+    const Engine = Matter.Engine,
+      World = Engine.world,
+      Render = Matter.Render,
+      Runner = Matter.Runner,
+      Bodies = Matter.Bodies,
+      Composite = Matter.Composite,
+      Common = Matter.Common,
+      Svg = Matter.Svg,
+      Vertices = Matter.Vertices;
+
+    // Need to provide concave decomposition support library
+    // This is a JS module so unsure how to use it from the CDN
+    Common.setDecomp(polyDecomp);
+
+    // create an engine
+    const engine = Engine.create();
+
+    // create a renderer
+    const render = Render.create({
+      element: square,
+      engine: engine,
+      options: {
+        background: 'transparent',
+        hasBounds: true,
+        height: height,
+        width: width,
+        wireframes: false,
+      },
+    });
+
+    // add bodies
+    if (typeof fetch !== 'undefined') {
+      var select = function (root, selector) {
+        return Array.prototype.slice.call(root.querySelectorAll(selector));
+      };
+
+      var loadSvg = function (url) {
+        return fetch(url)
+          .then(function (response) {
+            return response.text();
+          })
+          .then(function (raw) {
+            return new window.DOMParser().parseFromString(raw, 'image/svg+xml');
+          });
+      };
+
+      [
+        'https://uploads-ssl.webflow.com/619153717e2f73fc48cec2c0/633b55039e4d53e3e7bd0fdb_ProductLogo-2.svg',
+        'https://uploads-ssl.webflow.com/619153717e2f73fc48cec2c0/633b5503b4143968124950e9_ProductLogo.svg',
+        'https://uploads-ssl.webflow.com/619153717e2f73fc48cec2c0/633b5503aeb69df5abcec748_ProductLogo-1.svg',
+      ].forEach(function (path, i) {
+        loadSvg(path).then(function (root) {
+          const vertexSets = select(root, 'path').map(function (path) {
+            return Vertices.scale(Svg.pathToVertices(path, 30), 0.4, 0.4);
+          });
+
+          Composite.add(
+            engine.world,
+            Bodies.fromVertices(
+              width / 3 + i * 30,
+              -20,
+              vertexSets,
+              {
+                render: {
+                  fillStyle: '#000000',
+                  //   strokeStyle: '#000000',
+                  //   lineWidth: 'fill',
+                },
+              },
+              true
+            )
+          );
+        });
+      });
+    } else {
+      Common.warn('Fetch is not available. Could not load SVG.');
+    }
+
+    // create two boxes and a ground
+    const boxA = Bodies.rectangle(width / 2 + 20, -80, 80, 80);
+    const boxB = Bodies.rectangle(width / 2 - 20, -40, 80, 80);
+    const ground = Bodies.rectangle(width / 2, height - 5, width, 1, {
+      isStatic: true,
+    });
+
+    // add all of the bodies to the world
+    Composite.add(engine.world, [ground]);
+
+    // run the renderer
+    Render.run(render);
+
+    // create runner
+    const runner = Runner.create();
+
+    // engine run and reset functions
+    const runEngine = () => {
+      Runner.run(runner, engine);
+    };
+    const resetEngine = () => {
+      //World.clear(world);
+      Engine.clear(engine);
+      Render.stop(render);
+      Runner.stop(runner);
+      render.canvas.remove();
+      render.canvas = null;
+      render.context = null;
+    };
+
+    // run the engine
+    $('#hover-square').hover(
+      function () {
+        runEngine();
+      },
+      function () {
+        console.log('reset goes here');
+      }
+    );
+  </script>
+</html>
